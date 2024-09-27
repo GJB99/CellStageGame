@@ -6,11 +6,30 @@
     <style>
         canvas {
             border: 1px solid #000;
+            display: block;
+            margin: 0 auto;
         }
     </style>
 </head>
 <body>
     <canvas id="canvas" width="800" height="600"></canvas>
-    <script src="game.js"></script>
+    <script>
+        var Module = {
+            canvas: (function() {
+                var canvas = document.getElementById('canvas');
+                return canvas;
+            })(),
+            onRuntimeInitialized: function() {
+                console.log('WebAssembly module loaded and ready');
+            },
+            print: function(text) {
+                console.log(text);
+            },
+            printErr: function(text) {
+                console.error(text);
+            }
+        };
+    </script>
+    <script async src="game.js"></script>
 </body>
 </html>

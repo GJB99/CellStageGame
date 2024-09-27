@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/Users/guus/My project/CellStageGame/emsdk-main/upstream/emscripten/system/include",
+                "C:/Users/guus/My project/CellStageGame/emsdk-main/upstream/emscripten/system/lib/libcxx/include",
+                "C:/Users/guus/My project/CellStageGame/emsdk-main/upstream/emscripten/system/lib/libc/musl/arch/emscripten"
+            ],
+            "defines": [],
+            "compilerPath": "C:/Users/guus/My project/CellStageGame/emsdk-main/upstream/emscripten/em++",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-x64"
+        }
+    ],
+    "version": 4
+}
