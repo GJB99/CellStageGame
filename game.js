@@ -2925,42 +2925,6 @@ function dbg(...args) {
       return GLctx.getAttribLocation(GL.programs[program], UTF8ToString(name));
     };
 
-  
-  var _glGetShaderInfoLog = (shader, maxLength, length, infoLog) => {
-      var log = GLctx.getShaderInfoLog(GL.shaders[shader]);
-      if (log === null) log = '(unknown error)';
-      var numBytesWrittenExclNull = (maxLength > 0 && infoLog) ? stringToUTF8(log, infoLog, maxLength) : 0;
-      if (length) HEAP32[((length)>>2)] = numBytesWrittenExclNull;
-    };
-
-  var _glGetShaderiv = (shader, pname, p) => {
-      if (!p) {
-        // GLES2 specification does not specify how to behave if p is a null
-        // pointer. Since calling this function does not make sense if p == null,
-        // issue a GL error to notify user about it.
-        GL.recordError(0x501 /* GL_INVALID_VALUE */);
-        return;
-      }
-      if (pname == 0x8B84) { // GL_INFO_LOG_LENGTH
-        var log = GLctx.getShaderInfoLog(GL.shaders[shader]);
-        if (log === null) log = '(unknown error)';
-        // The GLES2 specification says that if the shader has an empty info log,
-        // a value of 0 is returned. Otherwise the log has a null char appended.
-        // (An empty string is falsey, so we can just check that instead of
-        // looking at log.length.)
-        var logLength = log ? log.length + 1 : 0;
-        HEAP32[((p)>>2)] = logLength;
-      } else if (pname == 0x8B88) { // GL_SHADER_SOURCE_LENGTH
-        var source = GLctx.getShaderSource(GL.shaders[shader]);
-        // source may be a null, or the empty string, both of which are falsey
-        // values that we report a 0 length for.
-        var sourceLength = source ? source.length + 1 : 0;
-        HEAP32[((p)>>2)] = sourceLength;
-      } else {
-        HEAP32[((p)>>2)] = GLctx.getShaderParameter(GL.shaders[shader], pname);
-      }
-    };
-
   /** @suppress {checkTypes} */
   var jstoi_q = (str) => parseInt(str);
   
@@ -3304,10 +3268,6 @@ var wasmImports = {
   glGenBuffers: _glGenBuffers,
   /** @export */
   glGetAttribLocation: _glGetAttribLocation,
-  /** @export */
-  glGetShaderInfoLog: _glGetShaderInfoLog,
-  /** @export */
-  glGetShaderiv: _glGetShaderiv,
   /** @export */
   glGetUniformLocation: _glGetUniformLocation,
   /** @export */
