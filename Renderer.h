@@ -3,6 +3,7 @@
 #include "Cell.h"
 #include "Food.h"
 #include <vector>
+#include "Upgrade.h"
 
 class Renderer {
 public:
@@ -11,11 +12,16 @@ public:
 
     void init();
     void renderGame(const Cell& player, const std::vector<Cell>& organisms, const std::vector<Food>& foods, bool gameOver, float cameraX, float cameraY);
-    void renderUpgradeOptions(const std::vector<UpgradeType>& options, float playerX, float playerY);    void renderUI(const Cell& player);
+    void renderUpgradeOptions(const std::vector<UpgradeType>& options, float playerX, float playerY);
 
     void setWorldSize(float width, float height) {
         worldWidth = width;
         worldHeight = height;
+    }
+
+    void setCameraPosition(float x, float y) {
+        cameraX = x;
+        cameraY = y;
     }
 
 private:

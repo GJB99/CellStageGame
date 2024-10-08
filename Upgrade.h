@@ -5,13 +5,9 @@
 class Cell;
 
 enum class UpgradeType {
-    Wings,
-    Spike,
-    HarderSkin,
-    Speed,
-    Size,
-    Defense,
-    Offense
+    UtilitySpeed,
+    DefenseHP,
+    OffensiveDamage
 };
 
 std::string upgradeTypeToString(UpgradeType type); 

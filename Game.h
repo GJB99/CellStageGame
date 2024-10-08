@@ -17,6 +17,7 @@ public:
     void render();
     void selectUpgrade(int index);
     Input& getInput() { return input; }
+    std::string upgradeTypeToString(UpgradeType type);
 
 private:
     Cell player;

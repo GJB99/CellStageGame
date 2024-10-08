@@ -7,7 +7,14 @@ enum class UpgradeType;
 
 class Cell {
 public:
+    bool readyForUpgrade;
+
     Cell(float startX, float startY, float startSize, float startSpeed);
+
+    void move(float dx, float dy) {
+        x += dx;
+        y += dy;
+    }
 
     void update(float worldWidth, float worldHeight);
     void grow(float amount);

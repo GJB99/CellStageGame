@@ -4,7 +4,7 @@
 Cell::Cell(float startX, float startY, float startSize, float startSpeed)
     : x(startX), y(startY), size(startSize), speed(startSpeed), 
       directionX(0.0f), directionY(0.0f), xp(0), level(1), 
-      hp(100), maxHp(100), xpToNextLevel(100) {}
+      hp(100), maxHp(100), xpToNextLevel(100), readyForUpgrade(false) {}
 
 void Cell::update(float worldWidth, float worldHeight) {
     x += directionX * speed;
@@ -18,31 +18,19 @@ void Cell::update(float worldWidth, float worldHeight) {
 }
 
 void Cell::applyUpgrade(UpgradeType upgrade) {
-    upgrades.push_back(upgrade);
     switch (upgrade) {
-        case UpgradeType::Wings:
-        case UpgradeType::Speed:
-            speed *= 1.2f;
-            printf("Speed increased to: %f\n", speed);
+        case UpgradeType::UtilitySpeed:
+            speed *= 1.2f;  // Increase speed by 20%
             break;
-        case UpgradeType::Size:
-            grow(0.02f);
-            printf("Size increased to: %f\n", size);
+        case UpgradeType::DefenseHP:
+            maxHp += 20;  // Increase max HP by 20
+            hp = maxHp;  // Heal to full
             break;
-        case UpgradeType::Spike:
-        case UpgradeType::Offense:
-            damage *= 1.2f;
-            printf("Damage increased to: %f\n", damage);
-            break;
-        case UpgradeType::HarderSkin:
-        case UpgradeType::Defense:
-            maxHp += 20;
-            hp += 20;
-            printf("Max HP increased to: %d\n", maxHp);
-            break;
-        default:
+        case UpgradeType::OffensiveDamage:
+            damage *= 1.2f;  // Increase damage by 20%
             break;
     }
+    upgrades.push_back(upgrade);
 }
 
 void Cell::takeDamage(int amount) {
@@ -63,6 +51,7 @@ void Cell::levelUp() {
     xpToNextLevel = static_cast<int>(xpToNextLevel * 1.1f);  // Increase by 10%
     maxHp += 10;
     hp = maxHp;
+    readyForUpgrade = true;
     printf("Leveled up! New level: %d, XP required for next level: %d\n", level, xpToNextLevel);
 }
 

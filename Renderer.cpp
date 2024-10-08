@@ -1,8 +1,10 @@
 #include "Renderer.h"
 #include <vector>
+#include <set>
+#include <string>
+#include <set>
 
-Renderer::Renderer() : gameShaderProgram(0), uiShaderProgram(0), gameVbo(0), uiVbo(0) {}
-
+Renderer::Renderer() : gameShaderProgram(0), uiShaderProgram(0), gameVbo(0), uiVbo(0), cameraX(0.0f), cameraY(0.0f) {}
 Renderer::~Renderer() {
     if (gameShaderProgram) {
         glDeleteProgram(gameShaderProgram);
@@ -30,16 +32,16 @@ void Renderer::init() {
 }
 
 void Renderer::initUIShaders() {
-    const char* uiVertexShaderSource = R"(
-        attribute vec2 aPosition;
+    const char* vertexShaderSource = R"(
+        attribute vec2 position;
         uniform vec2 uScreenSize;
         void main() {
-            vec2 screenPosition = (aPosition / uScreenSize) * 2.0 - 1.0;
-            gl_Position = vec4(screenPosition, 0.0, 1.0);
+            vec2 clipSpace = (position / uScreenSize) * 2.0 - 1.0;
+            gl_Position = vec4(clipSpace, 0.0, 1.0);
         }
     )";
 
-    const char* uiFragmentShaderSource = R"(
+    const char* fragmentShaderSource = R"(
         precision mediump float;
         uniform vec4 uColor;
         void main() {
@@ -47,9 +49,18 @@ void Renderer::initUIShaders() {
         }
     )";
 
-    // Compile and link shaders similar to initShaders()
-    // Store the program in uiShaderProgram
-    // Get attribute and uniform locations
+    uiShaderProgram = createShaderProgram(vertexShaderSource, fragmentShaderSource);
+    if (uiShaderProgram == 0) {
+        printf("Failed to create UI shader program\n");
+        return;
+    }
+
+    uiPositionAttrib = glGetAttribLocation(uiShaderProgram, "position");
+    uiColorUniform = glGetUniformLocation(uiShaderProgram, "uColor");
+    GLint uScreenSizeUniform = glGetUniformLocation(uiShaderProgram, "uScreenSize");
+
+    glUseProgram(uiShaderProgram);
+    glUniform2f(uScreenSizeUniform, 800.0f, 600.0f);  // Set your actual screen resolution
 }
 
 void Renderer::initShaders() {
@@ -153,8 +164,6 @@ void Renderer::renderGame(const Cell& player, const std::vector<Cell>& organisms
         glClearColor(0.8f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
     }
-
-    renderUI(player);
 }
 
 void Renderer::renderCell(const Cell& cell, float r, float g, float b) {
@@ -201,12 +210,16 @@ void Renderer::renderUpgradeOptions(const std::vector<UpgradeType>& options, flo
     glVertexAttribPointer(uiPositionAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(uiPositionAttrib);
 
-    // Render a semi-transparent background
-    glUniform4f(uiColorUniform, 0.0f, 0.0f, 0.0f, 0.7f);
+    float screenWidth = 800.0f;
+    float screenHeight = 600.0f;
     float bgWidth = 320.0f;
     float bgHeight = options.size() * 70.0f + 20.0f;
-    float bgX = playerX - bgWidth / 2;
-    float bgY = playerY + 50.0f;  // Position above the player
+    
+    float bgX = screenWidth / 2 - bgWidth / 2;
+    float bgY = screenHeight / 2 - bgHeight / 2;
+
+    // Render semi-transparent background
+    glUniform4f(uiColorUniform, 0.0f, 0.0f, 0.0f, 0.7f);
     float vertices[] = {bgX, bgY, bgX + bgWidth, bgY, bgX + bgWidth, bgY + bgHeight, bgX, bgY + bgHeight};
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
@@ -225,20 +238,18 @@ void Renderer::renderUpgradeOptions(const std::vector<UpgradeType>& options, flo
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(optionVertices), optionVertices);
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
-        // Render option text
         std::string optionText = upgradeTypeToString(options[i]);
-        renderText(optionText, x + 10, y + optionHeight / 2 - 10, 1.5f);
-        
-        printf("Rendering upgrade option: %s at (%f, %f)\n", optionText.c_str(), x, y);
+        renderText(optionText, x + 10, y + optionHeight / 2 - 10, 1.0f);
     }
+
+    glDisableVertexAttribArray(uiPositionAttrib);
 }
 
 std::string Renderer::upgradeTypeToString(UpgradeType type) {
     switch (type) {
-        case UpgradeType::Wings: return "Wings";
-        case UpgradeType::Spike: return "Spike";
-        case UpgradeType::HarderSkin: return "Harder Skin";
-        // ... other cases ...
+        case UpgradeType::UtilitySpeed: return "Utility: Speed";
+        case UpgradeType::DefenseHP: return "Defense: HP";
+        case UpgradeType::OffensiveDamage: return "Offensive: Damage";
         default: return "Unknown";
     }
 }
@@ -271,33 +282,20 @@ void Renderer::renderText(const std::string& text, float x, float y, float scale
     glVertexAttribPointer(uiPositionAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(uiPositionAttrib);
 
-    // Use the provided x and y coordinates instead of centering
-    float rectWidth = text.length() * 10 * scale;
-    float rectHeight = 20 * scale;
+    float charWidth = 8.0f * scale;
+    float charHeight = 16.0f * scale;
 
-    glUniform4f(uiColorUniform, 1.0f, 1.0f, 1.0f, 1.0f);  // White color for text
-    float vertices[] = {x, y, x + rectWidth, y, x + rectWidth, y + rectHeight, x, y + rectHeight};
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+    for (size_t i = 0; i < text.length(); ++i) {
+        float charX = x + i * charWidth;
+        
+        // Render character background
+        glUniform4f(uiColorUniform, 1.0f, 1.0f, 1.0f, 1.0f);
+        float charVertices[] = {charX, y, charX + charWidth, y, charX + charWidth, y + charHeight, charX, y + charHeight};
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(charVertices), charVertices);
+        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+    }
 
-    // Print to console for debugging
-    printf("Render text: %s at (%f, %f)\n", text.c_str(), x, y);
-}
-
-void Renderer::renderUI(const Cell& player) {
-    glUseProgram(uiShaderProgram);
-    glBindBuffer(GL_ARRAY_BUFFER, uiVbo);
-    glVertexAttribPointer(uiPositionAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(uiPositionAttrib);
-
-    float xpPercentage = static_cast<float>(player.xp) / player.xpToNextLevel;
-    float hpPercentage = static_cast<float>(player.hp) / player.maxHp;
-
-    renderBar(10, 10, 200, 20, xpPercentage, 0.0f, 1.0f, 0.0f);  // XP bar
-    renderBar(10, 40, 200, 20, hpPercentage, 1.0f, 0.0f, 0.0f);  // HP bar
-
-    std::string levelText = "Level: " + std::to_string(player.level);
-    renderText(levelText, 10, 70, 1.0f);
+    glDisableVertexAttribArray(uiPositionAttrib);
 }
 
 GLuint Renderer::createShaderProgram(const char* vertexShaderSource, const char* fragmentShaderSource) {

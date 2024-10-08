@@ -5,8 +5,7 @@
 #include <ctime>
 #include <emscripten/html5.h>
 
-Game::Game() : player(0.0f, 0.0f, 0.05f, 0.01f), gameOver(false), ui() {}
-
+Game::Game() : player(0.0f, 0.0f, 0.05f, 0.01f), gameOver(false), ui(), showingUpgradeOptions(false) {}
 void Game::init() {
     std::srand(std::time(0));
     renderer.init();
@@ -26,10 +25,10 @@ void Game::init() {
     emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, this, EM_TRUE, Input::keyCallback);
 }
 
+
 void Game::selectUpgrade(int index) {
     if (index >= 0 && index < currentUpgradeOptions.size()) {
         UpgradeType selectedUpgrade = currentUpgradeOptions[index];
-        upgradeSystem.applyUpgrade(player, selectedUpgrade);
         player.applyUpgrade(selectedUpgrade);
         showingUpgradeOptions = false;
         currentUpgradeOptions.clear();
@@ -44,16 +43,20 @@ void Game::updateCamera() {
     cameraY = player.y - worldHeight / 2;
 }
 
-// Add this method to Game class
 void Game::handleUpgrades() {
-    if (player.xp >= player.xpToNextLevel && !showingUpgradeOptions) {
+    static bool printedHandleUpgrades = false;
+
+    if (player.readyForUpgrade && !showingUpgradeOptions) {
         showingUpgradeOptions = true;
         currentUpgradeOptions = {
-            UpgradeType::Wings,
-            UpgradeType::Spike,
-            UpgradeType::HarderSkin
+            UpgradeType::UtilitySpeed,
+            UpgradeType::DefenseHP,
+            UpgradeType::OffensiveDamage
         };
-        printf("Showing upgrade options\n");  // Debug print
+        if (!printedHandleUpgrades) {
+            printf("Showing upgrade options\n");
+            printedHandleUpgrades = true;
+        }
     }
 }
 
@@ -61,29 +64,39 @@ void Game::update() {
     if (gameOver) return;
 
     input.update();
-    player.directionX = input.getHorizontalAxis();
-    player.directionY = input.getVerticalAxis();
+    handleUpgrades();
 
-    if (!showingUpgradeOptions) {
-        player.update(worldWidth, worldHeight);
-        updateCamera();
-        checkCollisions();
-    } else {
-        // Handle upgrade selection
+    // Add player movement
+    float dx = 0.0f, dy = 0.0f;
+    if (input.isKeyPressed(87)) dy += player.speed; // W key
+    if (input.isKeyPressed(83)) dy -= player.speed; // S key
+    if (input.isKeyPressed(65)) dx -= player.speed; // A key
+    if (input.isKeyPressed(68)) dx += player.speed; // D key
+    player.x += dx;
+    player.y += dy;
+
+    updateCamera();
+    checkCollisions();
+
+    if (showingUpgradeOptions) {
+        float screenWidth = 800.0f;
+        float screenHeight = 600.0f;
+        float bgWidth = 320.0f;
+        float bgHeight = currentUpgradeOptions.size() * 70.0f + 20.0f;
+        float bgX = screenWidth / 2 - bgWidth / 2;
+        float bgY = screenHeight / 2 - bgHeight / 2;
+
+        float optionWidth = 300.0f;
+        float optionHeight = 60.0f;
+        float spacing = 10.0f;
+
         if (input.isMouseClicked()) {
             float mouseX = input.getMouseX();
             float mouseY = input.getMouseY();
             
-            // Calculate upgrade option positions (similar to Renderer::renderUpgradeOptions)
-            float centerX = worldWidth / 2;
-            float centerY = worldHeight / 2;
-            float optionWidth = 300.0f;
-            float optionHeight = 60.0f;
-            float spacing = 20.0f;
-
             for (size_t i = 0; i < currentUpgradeOptions.size(); ++i) {
-                float y = centerY + (i - (currentUpgradeOptions.size() - 1) / 2.0f) * (optionHeight + spacing);
-                float x = centerX - optionWidth / 2;
+                float y = bgY + 10.0f + i * (optionHeight + spacing);
+                float x = bgX + 10.0f;
 
                 if (mouseX >= x && mouseX <= x + optionWidth && mouseY >= y && mouseY <= y + optionHeight) {
                     selectUpgrade(i);
@@ -92,32 +105,22 @@ void Game::update() {
             }
         }
     }
-
-    handleUpgrades();
-
-    // HP reduction logic
-    static int frameCount = 0;
-    frameCount++;
-    if (frameCount >= 100) {
-        player.takeDamage(1);
-        frameCount = 0;
-    }
-
-    if (player.hp <= 0) {
-        gameOver = true;
-        printf("Game Over! Player HP reached 0.\n");
-    }
 }
 
 void Game::render() {
+    static bool printedRendering = false;
+
     renderer.renderGame(player, organisms, foods, gameOver, cameraX, cameraY);
-    
+    ui.render(player, cameraX, cameraY, worldWidth, worldHeight);
+
     if (showingUpgradeOptions) {
+        if (!printedRendering) {
+            printf("Rendering upgrade options\n");
+            printedRendering = true;
+        }
+        renderer.setCameraPosition(cameraX, cameraY);
         renderer.renderUpgradeOptions(currentUpgradeOptions, player.x, player.y);
-        printf("Rendering upgrade options\n");  // Debug print
     }
-    
-    renderer.renderUI(player);
 }
 
 void Game::spawnFood() {
@@ -136,5 +139,14 @@ void Game::checkCollisions() {
         } else {
             ++it;
         }
+    }
+}
+
+std::string Game::upgradeTypeToString(UpgradeType type) {
+    switch (type) {
+        case UpgradeType::UtilitySpeed: return "Utility: Speed";
+        case UpgradeType::DefenseHP: return "Defense: HP";
+        case UpgradeType::OffensiveDamage: return "Offensive: Damage";
+        default: return "Unknown";
     }
 }

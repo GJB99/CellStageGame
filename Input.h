@@ -1,30 +1,33 @@
 #pragma once
+#include <GLES2/gl2.h>
 #include <emscripten/html5.h>
-
-class Game;
+#include <unordered_map>
 
 class Input {
 public:
     Input();
+    ~Input();
 
     void init();
     void update();
+    bool isKeyPressed(int keyCode) const;
+    float getHorizontalAxis() const;
+    float getVerticalAxis() const;
 
-    float getHorizontalAxis();
-    float getVerticalAxis();
+    bool isMouseClicked() const;
+    float getMouseX() const;
+    float getMouseY() const;
+
+    void setMouseClicked(bool clicked);
+    void setMousePosition(float x, float y);
 
     static EM_BOOL keyCallback(int eventType, const EmscriptenKeyboardEvent* e, void* userData);
-    static Game* game;
-
-    bool isMouseClicked();
-    float getMouseX();
-    float getMouseY();
-
-    // Make these public
-    bool mouseClicked;
-    float mouseX, mouseY;
+    static EM_BOOL mouseCallback(int eventType, const EmscriptenMouseEvent* e, void* userData);
+    static EM_BOOL mouseMoveCallback(int eventType, const EmscriptenMouseEvent* e, void* userData);
 
 private:
-    float horizontalAxis;
-    float verticalAxis;
+    std::unordered_map<int, bool> keyStates;
+    bool mouseClicked;
+    float mouseX, mouseY;
+    float horizontalAxis, verticalAxis;
 };
