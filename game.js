@@ -2251,6 +2251,64 @@ function dbg(...args) {
       setMainLoop(browserIterationFunc, fps, simulateInfiniteLoop);
     };
 
+  
+  
+  var getBoundingClientRect = (e) => specialHTMLTargets.indexOf(e) < 0 ? e.getBoundingClientRect() : {'left':0,'top':0};
+  
+  var fillMouseEventData = (eventStruct, e, target) => {
+      assert(eventStruct % 4 == 0);
+      HEAPF64[((eventStruct)>>3)] = e.timeStamp;
+      var idx = ((eventStruct)>>2);
+      HEAP32[idx + 2] = e.screenX;
+      HEAP32[idx + 3] = e.screenY;
+      HEAP32[idx + 4] = e.clientX;
+      HEAP32[idx + 5] = e.clientY;
+      HEAP8[eventStruct + 24] = e.ctrlKey;
+      HEAP8[eventStruct + 25] = e.shiftKey;
+      HEAP8[eventStruct + 26] = e.altKey;
+      HEAP8[eventStruct + 27] = e.metaKey;
+      HEAP16[idx*2 + 14] = e.button;
+      HEAP16[idx*2 + 15] = e.buttons;
+  
+      HEAP32[idx + 8] = e["movementX"]
+        ;
+  
+      HEAP32[idx + 9] = e["movementY"]
+        ;
+  
+      // Note: rect contains doubles (truncated to placate SAFE_HEAP, which is the same behaviour when writing to HEAP32 anyway)
+      var rect = getBoundingClientRect(target);
+      HEAP32[idx + 10] = e.clientX - (rect.left | 0);
+      HEAP32[idx + 11] = e.clientY - (rect.top  | 0);
+  
+    };
+  
+  
+  
+  var registerMouseEventCallback = (target, userData, useCapture, callbackfunc, eventTypeId, eventTypeString, targetThread) => {
+      if (!JSEvents.mouseEvent) JSEvents.mouseEvent = _malloc(64);
+      target = findEventTarget(target);
+  
+      var mouseEventHandlerFunc = (e = event) => {
+        // TODO: Make this access thread safe, or this could update live while app is reading it.
+        fillMouseEventData(JSEvents.mouseEvent, e, target);
+  
+        if (getWasmTableEntry(callbackfunc)(eventTypeId, JSEvents.mouseEvent, userData)) e.preventDefault();
+      };
+  
+      var eventHandler = {
+        target,
+        allowsDeferredCalls: eventTypeString != 'mousemove' && eventTypeString != 'mouseenter' && eventTypeString != 'mouseleave', // Mouse move events do not allow fullscreen/pointer lock requests to be handled in them!
+        eventTypeString,
+        callbackfunc,
+        handlerFunc: mouseEventHandlerFunc,
+        useCapture
+      };
+      return JSEvents.registerOrRemoveHandler(eventHandler);
+    };
+  var _emscripten_set_mousedown_callback_on_thread = (target, userData, useCapture, callbackfunc, targetThread) =>
+      registerMouseEventCallback(target, userData, useCapture, callbackfunc, 5, "mousedown", targetThread);
+
   var GLctx;
   
   var webgl_enable_ANGLE_instanced_arrays = (ctx) => {
@@ -2872,6 +2930,14 @@ function dbg(...args) {
       GLctx.bufferData(target, data ? HEAPU8.subarray(data, data+size) : size, usage);
     };
 
+  var _glBufferSubData = (target, offset, size, data) => {
+      if (GL.currentContext.version >= 2) {
+        size && GLctx.bufferSubData(target, offset, HEAPU8, data, size);
+        return;
+      }
+      GLctx.bufferSubData(target, offset, HEAPU8.subarray(data, data+size));
+    };
+
   var _glClear = (x0) => GLctx.clear(x0);
 
   var _glClearColor = (x0, x1, x2, x3) => GLctx.clearColor(x0, x1, x2, x3);
@@ -2898,6 +2964,19 @@ function dbg(...args) {
       GL.shaders[id] = GLctx.createShader(shaderType);
   
       return id;
+    };
+
+  var _glDeleteShader = (id) => {
+      if (!id) return;
+      var shader = GL.shaders[id];
+      if (!shader) {
+        // glDeleteShader actually signals an error when deleting a nonexisting
+        // object, unlike some other GL delete functions.
+        GL.recordError(0x501 /* GL_INVALID_VALUE */);
+        return;
+      }
+      GLctx.deleteShader(shader);
+      GL.shaders[id] = null;
     };
 
   var _glDrawArrays = (mode, first, count) => {
@@ -3071,6 +3150,11 @@ function dbg(...args) {
       GLctx.uniform3f(webglGetUniformLocation(location), v0, v1, v2);
     };
 
+  
+  var _glUniform4f = (location, v0, v1, v2, v3) => {
+      GLctx.uniform4f(webglGetUniformLocation(location), v0, v1, v2, v3);
+    };
+
   var _glUseProgram = (program) => {
       program = GL.programs[program];
       GLctx.useProgram(program);
@@ -3235,6 +3319,8 @@ var wasmImports = {
   /** @export */
   emscripten_set_main_loop: _emscripten_set_main_loop,
   /** @export */
+  emscripten_set_mousedown_callback_on_thread: _emscripten_set_mousedown_callback_on_thread,
+  /** @export */
   emscripten_webgl_create_context: _emscripten_webgl_create_context,
   /** @export */
   emscripten_webgl_make_context_current: _emscripten_webgl_make_context_current,
@@ -3251,6 +3337,8 @@ var wasmImports = {
   /** @export */
   glBufferData: _glBufferData,
   /** @export */
+  glBufferSubData: _glBufferSubData,
+  /** @export */
   glClear: _glClear,
   /** @export */
   glClearColor: _glClearColor,
@@ -3260,6 +3348,8 @@ var wasmImports = {
   glCreateProgram: _glCreateProgram,
   /** @export */
   glCreateShader: _glCreateShader,
+  /** @export */
+  glDeleteShader: _glDeleteShader,
   /** @export */
   glDrawArrays: _glDrawArrays,
   /** @export */
@@ -3280,6 +3370,8 @@ var wasmImports = {
   glUniform2f: _glUniform2f,
   /** @export */
   glUniform3f: _glUniform3f,
+  /** @export */
+  glUniform4f: _glUniform4f,
   /** @export */
   glUseProgram: _glUseProgram,
   /** @export */
@@ -3373,9 +3465,6 @@ var missingLibrarySymbols = [
   'stringToUTF32',
   'lengthBytesUTF32',
   'stringToNewUTF8',
-  'getBoundingClientRect',
-  'fillMouseEventData',
-  'registerMouseEventCallback',
   'registerWheelEventCallback',
   'registerUiEventCallback',
   'registerFocusEventCallback',
@@ -3530,6 +3619,9 @@ var unexportedSymbols = [
   'maybeCStringToJsString',
   'findEventTarget',
   'findCanvasEventTarget',
+  'getBoundingClientRect',
+  'fillMouseEventData',
+  'registerMouseEventCallback',
   'currentFullscreenStrategy',
   'restoreOldWindowedStyle',
   'UNWIND_CACHE',

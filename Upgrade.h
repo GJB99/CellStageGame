@@ -1,12 +1,20 @@
 #pragma once
-#include "Cell.h"
+#include <string>
+#include "Cell.h"   
+
+class Cell;
 
 enum class UpgradeType {
+    Wings,
+    Spike,
+    HarderSkin,
     Speed,
     Size,
     Defense,
     Offense
 };
+
+std::string upgradeTypeToString(UpgradeType type); 
 
 class UpgradeSystem {
 public:
