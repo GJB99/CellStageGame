@@ -14,9 +14,9 @@ public:
     float getHorizontalAxis() const;
     float getVerticalAxis() const;
 
-    bool isMouseClicked() const;
-    float getMouseX() const;
-    float getMouseY() const;
+    bool isMouseClicked() const { return mouseClicked; }
+    float getMouseX() const { return mouseX; }
+    float getMouseY() const { return mouseY; }
 
     void setMouseClicked(bool clicked);
     void setMousePosition(float x, float y);
@@ -25,9 +25,15 @@ public:
     static EM_BOOL mouseCallback(int eventType, const EmscriptenMouseEvent* e, void* userData);
     static EM_BOOL mouseMoveCallback(int eventType, const EmscriptenMouseEvent* e, void* userData);
 
+    bool isKeyJustPressed(int keyCode) {
+        return keys[keyCode] && !prevKeys[keyCode];
+    }
+
 private:
-    std::unordered_map<int, bool> keyStates;
-    bool mouseClicked;
-    float mouseX, mouseY;
+    bool keys[256] = {false};
+    bool prevKeys[256] = {false};
+    bool mouseClicked = false;
+    float mouseX = 0.0f;
+    float mouseY = 0.0f;
     float horizontalAxis, verticalAxis;
 };

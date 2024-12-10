@@ -7,7 +7,13 @@ class Cell;
 enum class UpgradeType {
     UtilitySpeed,
     DefenseHP,
-    OffensiveDamage
+    OffensiveDamage,
+    DefenseArmor,
+    UtilityRegeneration,
+    OffensiveCritical,
+    DefenseStunResist,
+    UtilitySize,
+    OffensiveLifeSteal
 };
 
 std::string upgradeTypeToString(UpgradeType type); 

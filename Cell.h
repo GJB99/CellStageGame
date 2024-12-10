@@ -35,6 +35,47 @@ public:
     int xpToNextLevel;
     std::vector<UpgradeType> upgrades;
 
+    float baseSpeed;
+    float baseDamage;
+    bool isInvincible;
+    float powerUpTimeLeft;
+    PowerUpType activePowerUp;
+
+    void applyPowerUp(PowerUpType type, float duration);
+    void updatePowerUps(float dt);
+    void resetStats();
+
+    // Add new combat stats
+    float criticalChance = 0.05f;
+    float criticalMultiplier = 2.0f;
+    float armor = 0.0f;
+    float regeneration = 0.0f;
+    bool isStunned = false;
+    float stunDuration = 0.0f;
+    
+    // New combat methods
+    float calculateDamage(float baseDamage) {
+        if (rand() / (float)RAND_MAX < criticalChance) {
+            return baseDamage * criticalMultiplier;
+        }
+        return baseDamage;
+    }
+    
+    void updateStats(float deltaTime) {
+        if (stunDuration > 0) {
+            stunDuration -= deltaTime;
+            isStunned = stunDuration > 0;
+        }
+        if (regeneration > 0 && hp < maxHp) {
+            hp = std::min(maxHp, hp + regeneration * deltaTime);
+        }
+    }
+
+    // Add these properties
+    bool hasPowerUp = false;
+    float powerUpTimeLeft = 0.0f;
+    bool isInvincible = false;
+    
 private:
     
 };

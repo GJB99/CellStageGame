@@ -5,6 +5,7 @@
 #include "Renderer.h"
 #include "Input.h"
 #include "Upgrade.h"
+#include "PowerUp.h"
 #include <vector>
 
 class Game {
@@ -18,6 +19,10 @@ public:
     void selectUpgrade(int index);
     Input& getInput() { return input; }
     std::string upgradeTypeToString(UpgradeType type);
+
+    void spawnPowerUp();
+    void updateDifficulty();
+    void handlePowerUps();
 
 private:
     Cell player;
@@ -42,4 +47,11 @@ private:
 
     bool showingUpgradeOptions;
     std::vector<UpgradeType> currentUpgradeOptions;
+
+    std::vector<PowerUp> powerUps;
+    float powerUpSpawnTimer;
+    float difficultyLevel;
+    int score;
+
+    void updateOrganism(Cell& org);
 };

@@ -20,14 +20,33 @@ void Cell::update(float worldWidth, float worldHeight) {
 void Cell::applyUpgrade(UpgradeType upgrade) {
     switch (upgrade) {
         case UpgradeType::UtilitySpeed:
-            speed *= 1.2f;  // Increase speed by 20%
+            speed *= 1.2f;
             break;
         case UpgradeType::DefenseHP:
-            maxHp += 20;  // Increase max HP by 20
-            hp = maxHp;  // Heal to full
+            maxHp += 20;
+            hp = maxHp;
             break;
         case UpgradeType::OffensiveDamage:
-            damage *= 1.2f;  // Increase damage by 20%
+            damage *= 1.2f;
+            break;
+        case UpgradeType::DefenseArmor:
+            armor += 0.1f;
+            break;
+        case UpgradeType::UtilityRegeneration:
+            regeneration += 2.0f;
+            break;
+        case UpgradeType::OffensiveCritical:
+            criticalChance += 0.05f;
+            criticalMultiplier += 0.2f;
+            break;
+        case UpgradeType::DefenseStunResist:
+            stunResistance += 0.2f;
+            break;
+        case UpgradeType::UtilitySize:
+            size *= 1.15f;
+            break;
+        case UpgradeType::OffensiveLifeSteal:
+            lifeSteal += 0.1f;
             break;
     }
     upgrades.push_back(upgrade);
@@ -58,4 +77,35 @@ void Cell::levelUp() {
 void Cell::grow(float amount) {
     size += amount;
     speed = std::max(0.005f, 0.01f - size * 0.05f);  // Slow down as we grow
+}
+
+void Cell::updateStats(float deltaTime) {
+    // Update power-up duration
+    if (powerUpTimeLeft > 0) {
+        powerUpTimeLeft -= deltaTime;
+        if (powerUpTimeLeft <= 0) {
+            // Remove power-up effects
+            isInvincible = false;
+            speed = baseSpeed;
+            damage = baseDamage;
+        }
+    }
+
+    // Apply regeneration
+    if (regeneration > 0 && hp < maxHp) {
+        hp = std::min(maxHp, hp + regeneration * deltaTime);
+    }
+
+    // Update stun status
+    if (stunDuration > 0) {
+        stunDuration -= deltaTime;
+        isStunned = stunDuration > 0;
+    }
+}
+
+float Cell::calculateDamage(float baseDamage) {
+    if (rand() / (float)RAND_MAX < criticalChance) {
+        return baseDamage * criticalMultiplier;
+    }
+    return baseDamage;
 }
